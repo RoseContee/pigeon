@@ -1,0 +1,53 @@
+@extends('admin.partials.layout')
+
+@section('title', (empty($guest) ? 'Add New Guest' : 'Edit Guest').' for '.$user['name'])
+
+@section('content')
+    <!-- Content Header (Page header) -->
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0 text-dark">{{ empty($guest) ? 'Add New Guest' : 'Edit Guest' }} for {{ $user['name'] }}</h1>
+                </div><!-- /.col -->
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="#">Home</a></li>
+                        <li class="breadcrumb-item">User</li>
+                        <li class="breadcrumb-item active">Guest</li>
+                    </ol>
+                </div><!-- /.col -->
+            </div><!-- /.row -->
+        </div><!-- /.container-fluid -->
+    </div>
+    <!-- /.content-header -->
+
+    <div class="content">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <form action="{{ url()->current() }}" method="POST">
+                        @csrf
+                        <div class="form-group @if ($errors->has('email') || ($error = session('email_error'))) has-error @endif">
+                            <label for="email">Email address:<span class="required">*</span></label>
+                            <input type="email" id="email" name="email" class="form-control" required
+                                   value="{{ old('email', empty($guest) ? '' : $guest['email']) }}">
+                            @if ($errors->has('email'))<span class="w-100 ml-2 small error">{{ $errors->first('email') }}</span>@endif
+                            @if (!empty($error))<span class="w-100 ml-2 small error">{{ $error }}</span>@endif
+                        </div>
+
+                        <div class="form-group @if ($errors->has('name')) has-error @endif">
+                            <label for="name">Name:</label>
+                            <input type="text" id="name" name="name" class="form-control"
+                                value="{{ old('name', empty($guest) ? '' : $guest['name']) }}">
+                            @if ($errors->has('name'))<span class="w-100 ml-2 small error">{{ $errors->first('name') }}</span>@endif
+                        </div>
+
+                        <button type="submit" class="btn btn-success">Save</button>
+                        <a href="{{ route('admin.user-guests', $user['id']) }}" class="btn btn-danger">Back</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+@endsection
