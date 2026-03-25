@@ -7,6 +7,7 @@ use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvi
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 
 class RouteServiceProvider extends ServiceProvider
 {
@@ -27,6 +28,8 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        $this->removeIndexPhpFromUrl();
+
         $this->configureRateLimiting();
 
         $this->routes(function () {
@@ -49,5 +52,19 @@ class RouteServiceProvider extends ServiceProvider
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(1000);
         });
+    }
+
+    protected function removeIndexPhpFromUrl()
+    {
+        $url = request()->getRequestUri();
+        if (Str::contains($url, '/index.php/') || Str::endsWith($url, '/index.php')) {
+            $url = str_replace('/index.php', '', $url);
+            if (strlen($url) == 0) $url = '/';
+
+            if (strlen($url) > 0) {
+                header("Location: $url", true, 301);
+                exit;
+            }
+        }
     }
 }

@@ -21,9 +21,9 @@ Route::group([
     Route::get('apps', 'ApiController@apps');
 
     Route::get('get-token', 'ApiController@getToken');
-    Route::post('login', 'ApiController@login');
     Route::post('auth-google', 'ApiController@authGoogle');
     Route::post('get-user-info', 'ApiController@getUserInfo');
     Route::post('add-guest', 'ApiController@addGuest');
+    Route::post('create-zoom-link', 'ApiController@createZoomLink');
     Route::post('create-event', 'ApiController@createEvent');
 });

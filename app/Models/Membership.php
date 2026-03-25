@@ -15,7 +15,7 @@ class Membership extends Model
      * @var array
      */
     protected $fillable = [
-        'membership_package_id', 'name', 'price', 'limitation', 'description', 'active',
+        'membership_package_id', 'name', 'price', 'limitation', 'event', 'schedule', 'description', 'active',
     ];
 
     public function scopeActive($query)

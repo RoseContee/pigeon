@@ -118,6 +118,59 @@
                             <p>Users</p>
                         </a>
                     </li>
+                    <li class="nav-item has-treeview @if(in_array($menu, ['signup', 'no-meeting', 'rate-review', 'complete-meeting', 'guests-notify', 'forgot-password', 'reset-notify'])) menu-open @endif">
+                        <a href="#" class="nav-link">
+                            <i class="nav-icon fa fa-envelope"></i>
+                            <p>
+                                Mail Template
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item">
+                                <a href="{{ route('admin.mail-template', 'signup') }}" class="nav-link @if ($menu == 'signup') active @endif">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Signup</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.mail-template', 'no-meeting') }}" class="nav-link @if ($menu == 'no-meeting') active @endif">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>No meeting</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.mail-template', 'rate-review') }}" class="nav-link @if ($menu == 'rate-review') active @endif">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Rate & Review</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.mail-template', 'complete-meeting') }}" class="nav-link @if ($menu == 'complete-meeting') active @endif">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Complete Meeting</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.mail-template', 'guests-notify') }}" class="nav-link @if ($menu == 'guests-notify') active @endif">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Guests Notify</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.mail-template', 'forgot-password') }}" class="nav-link @if ($menu == 'forgot-password') active @endif">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Forgot Password</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.mail-template', 'reset-notify') }}" class="nav-link @if ($menu == 'reset-notify') active @endif">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Reset Notify</p>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
                     <li class="nav-item">
                         <a href="{{ route('admin.setting') }}" class="nav-link @if($menu == 'Setting') active @endif">
                             <i class="nav-icon fa fa-tools"></i>
@@ -178,6 +231,8 @@
 <script src="{{ asset('public/assets/plugins/datatables/extensions/Buttons/js/vfs_fonts.js') }}"></script>
 <script src="{{ asset('public/assets/plugins/datatables/extensions/Select/js/dataTables.select.js') }}"></script>
 <script src="{{ asset('public/assets/plugins/datatables/extensions/Responsive/js/dataTables.responsive.js') }}"></script>
+<!-- Ckeditor -->
+<script src="{{ asset('public/assets/plugins/ckeditor/ckeditor.js') }}"></script>
 <!-- Chart -->
 <script src="{{ asset('public/assets/plugins/chart.js/Chart.js') }}"></script>
 <!-- AdminLTE App -->

@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Mail\ForgotPassword;
-use App\Mail\NotifyResetPassword;
+use App\Mail\Template;
 use App\Models\Admin;
+use App\Models\MailTemplate;
 use App\Models\PasswordReset;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -42,35 +42,38 @@ class AuthController extends Controller
 
     public function postForgot(Request $request) {
         $rule = [
-            'email' => ['required', 'email', 'exists:users'],
+            'email' => ['required', 'email', 'exists:admins'],
         ];
         $validator = Validator::make($request->all(), $rule);
         if ($validator->fails()) {
             return back()->withErrors($validator)->withInput()->with('error_message', 'Cannot find your account.');
         }
+        $email = $request['email'];
+        $token = Str::random(32);
+        $password_reset = PasswordReset::type('admin')->where('email', $email)->first();
+        if (empty($password_reset)) {
+            PasswordReset::insert([
+                'type' => 'admin',
+                'email' => $email,
+                'token' => $password_reset['token'] = $token,
+                'created_at' => now(),
+            ]);
+        } else if (empty($password_reset['token']) || now()->diffInSeconds(new Carbon($password_reset['created_at'])) > 15 * 60) {
+            PasswordReset::type('admin')->where('email', $email)->update([
+                'token' => $password_reset['token'] = $token,
+                'created_at' => now(),
+            ]);
+        }
         try {
-            $email = $request['email'];
-            $token = Str::random(32);
-            $password_reset = PasswordReset::type('admin')->where('email', $email)->first();
-            if (empty($password_reset)) {
-                PasswordReset::insert([
-                    'type' => 'admin',
-                    'email' => $email,
-                    'token' => $password_reset['token'] = $token,
-                    'created_at' => now(),
-                ]);
-            } else if (empty($password_reset['token']) || now()->diffInSeconds(new Carbon($password_reset['created_at'])) > 15 * 60) {
-                PasswordReset::type('admin')->where('email', $email)->update([
-                    'token' => $password_reset['token'] = $token,
-                    'created_at' => now(),
-                ]);
-            }
+            $mail = MailTemplate::ofCategory('forgot-password')->first();
+            $subject = str_replace('{Email}', $email, $mail['subject']);
+            $mail_body = str_replace('{Email}', $email, $mail['body']);
+            $mail_body = str_replace('{Link}', route('admin.reset-password', $password_reset['token']), $mail_body);
             $data = [
-                'name' => $email,
-                'route' => 'admin.reset-password',
-                'link' => $password_reset['token'],
+                'subject' => $subject,
+                'mail_body' => $mail_body,
             ];
-            Mail::to($email)->send(new ForgotPassword($data));
+            Mail::to($email)->send(new Template($data));
         } catch(\Exception $exception) {
             return back()->withInput()->with('error_message', 'Sorry! Some went error. Please try again.');
         }
@@ -132,11 +135,15 @@ class AuthController extends Controller
         $admin['password'] = Hash::make($request['password']);
         $admin->save();
         try {
+            $mail = MailTemplate::ofCategory('reset-notify')->first();
+            $subject = str_replace('{Email}', $admin['email'], $mail['subject']);
+            $mail_body = str_replace('{Email}', $admin['email'], $mail['body']);
+            $mail_body = str_replace('{Link}', route('admin.login'), $mail_body);
             $data = [
-                'route' => 'admin.login',
-                'name' => $admin['email'],
+                'subject' => $subject,
+                'mail_body' => $mail_body,
             ];
-            Mail::to($admin['email'])->send(new NotifyResetPassword($data));
+            Mail::to($admin['email'])->send(new Template($data));
         } catch(\Exception $exception) {
         }
         return redirect()->route('admin.login')->with('info_message', 'Your password has been reset successfully.');

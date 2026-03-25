@@ -17,11 +17,12 @@ class DatabaseSeeder extends Seeder
         $this->call([
             AdminSeeder::class,
             AppSeeder::class,
-            MembershipSeeder::class,
+            MailTemplateSeeder::class,
             MembershipPackageSeeder::class,
+            MembershipSeeder::class,
             PlatformSeeder::class,
-            WordSeeder::class,
             SettingSeeder::class,
+            WordSeeder::class,
         ]);
     }
 }

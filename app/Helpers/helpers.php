@@ -46,3 +46,21 @@ if (!function_exists('getTimezone')) {
         return 'Unknown';
     }
 }
+
+if (!function_exists('convertTimezone')) {
+    function convertTimezone($from, $to, $time, $date = null) {
+        try {
+            $new_time = date_create(($date ? $date.' ' : '').$time, ($from != 'Unknown' ? timezone_open($from) : null));
+            date_timezone_set($new_time, ($to != 'Unknown' ? timezone_open($to) : null));
+            return $new_time->format('Y-m-d h:i A');
+        } catch (\Exception $e) {
+            return ($date ? $date.' ' : '').$time;
+        }
+    }
+}
+
+if (!function_exists('timecmp')) {
+    function timecmp($time1, $time2) {
+        return strtotime($time1) - strtotime($time2);
+    }
+}
