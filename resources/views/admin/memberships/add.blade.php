@@ -80,6 +80,26 @@
                                 </div>
 
                                 <div class="row">
+                                    <label for="event" class="col-sm-2 control-label">Event Number: <span class="required">*</span></label>
+
+                                    <div class="col-sm-9 @if ($errors->has('event')) has-error @endif">
+                                        <input type="number" name="event" id="event" class="form-control" placeholder="Event Number" required
+                                               value="{{ old('event', empty($membership) ? '' : $membership['event']) }}">
+                                        @if ($errors->has('event'))<span class="w-100 ml-2 small error">{{ $errors->first('event') }}</span>@endif
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <label for="schedule" class="col-sm-2 control-label">Schedule Number: <span class="required">*</span></label>
+
+                                    <div class="col-sm-9 @if ($errors->has('schedule')) has-error @endif">
+                                        <input type="number" name="schedule" id="schedule" class="form-control" placeholder="Schedule Number" required
+                                               value="{{ old('schedule', empty($membership) ? '' : $membership['schedule']) }}">
+                                        @if ($errors->has('schedule'))<span class="w-100 ml-2 small error">{{ $errors->first('schedule') }}</span>@endif
+                                    </div>
+                                </div>
+
+                                <div class="row">
                                     <label for="description" class="col-sm-2 control-label">Description: <span class="required">*</span></label>
 
                                     <div class="col-sm-9 @if ($errors->has('description')) has-error @endif">

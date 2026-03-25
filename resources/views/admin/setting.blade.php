@@ -297,9 +297,9 @@
                 <div class="card">
                     <form action="{{ url()->current() }}" class="form-horizontal" method="POST">
                         @csrf
-                        <input type="hidden" name="type" value="google">
+                        <input type="hidden" name="type" value="third">
                         <div class="card-header">
-                            <h3 class="card-title">Google Setting</h3>
+                            <h3 class="card-title">Third Party Setting</h3>
                         </div>
                         <!-- /.card-header -->
                         <div class="card-body">
@@ -323,6 +323,26 @@
                                         @if ($errors->has('google_client_secret'))<span class="w-100 ml-2 small error">{{ $errors->first('google_client_secret') }}</span>@endif
                                     </div>
                                 </div>
+
+                                <div class="row">
+                                    <label for="zoom_client_id" class="col-sm-2 control-label">Zoom Client ID: <span class="required">*</span></label>
+
+                                    <div class="col-sm-9 @if ($errors->has('zoom_client_id')) has-error @endif">
+                                        <input type="text" name="zoom_client_id" id="zoom_client_id" class="form-control" placeholder="Zoom Client ID" required
+                                               value="{{ old('zoom_client_id', $setting['zoom_client_id']) }}">
+                                        @if ($errors->has('zoom_client_id'))<span class="w-100 ml-2 small error">{{ $errors->first('zoom_client_id') }}</span>@endif
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <label for="zoom_client_secret" class="col-sm-2 control-label">Zoom Client Secret: <span class="required">*</span></label>
+
+                                    <div class="col-sm-9 @if ($errors->has('zoom_client_secret')) has-error @endif">
+                                        <input type="text" name="zoom_client_secret" id="zoom_client_secret" class="form-control" placeholder="Zoom Client Secret" required
+                                               value="{{ old('zoom_client_secret', $setting['zoom_client_secret']) }}">
+                                        @if ($errors->has('zoom_client_secret'))<span class="w-100 ml-2 small error">{{ $errors->first('zoom_client_secret') }}</span>@endif
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <!-- /.card-body -->
@@ -334,47 +354,6 @@
                     </form>
                 </div>
                 <!-- /.card -->
-
-                {{--<div class="card">
-                    <form action="{{ url()->current() }}" class="form-horizontal" method="POST">
-                        @csrf
-                        <input type="hidden" name="type" value="linkedin">
-                        <div class="card-header">
-                            <h3 class="card-title">LinkedIn Setting</h3>
-                        </div>
-                        <!-- /.card-header -->
-                        <div class="card-body">
-                            <div class="form-group">
-                                <div class="row">
-                                    <label for="linkedin_client_id" class="col-sm-2 control-label">LinkedIn Client ID: <span class="required">*</span></label>
-
-                                    <div class="col-sm-9 @if ($errors->has('linkedin_client_id')) has-error @endif">
-                                        <input type="text" name="linkedin_client_id" id="linkedin_client_id" class="form-control" placeholder="LinkedIn Client ID" required
-                                               value="{{ old('linkedin_client_id', $setting['linkedin_client_id']) }}">
-                                        @if ($errors->has('linkedin_client_id'))<span class="w-100 ml-2 small error">{{ $errors->first('linkedin_client_id') }}</span>@endif
-                                    </div>
-                                </div>
-
-                                <div class="row">
-                                    <label for="linkedin_client_secret" class="col-sm-2 control-label">LinkedIn Client Secret: <span class="required">*</span></label>
-
-                                    <div class="col-sm-9 @if ($errors->has('linkedin_client_secret')) has-error @endif">
-                                        <input type="text" name="linkedin_client_secret" id="linkedin_client_secret" class="form-control" placeholder="LinkedIn Client Secret" required
-                                               value="{{ old('linkedin_client_secret', $setting['linkedin_client_secret']) }}">
-                                        @if ($errors->has('linkedin_client_secret'))<span class="w-100 ml-2 small error">{{ $errors->first('linkedin_client_secret') }}</span>@endif
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- /.card-body -->
-                        <div class="card-footer">
-                            <button type="submit" class="btn btn-primary ml-2">Save</button>
-                            <a href="{{ route('admin') }}" class="btn btn-danger">Back</a>
-                        </div>
-                        <!-- /.card-footer -->
-                    </form>
-                </div>
-                <!-- /.card -->--}}
             </div>
             <!-- /.col -->
         </div>

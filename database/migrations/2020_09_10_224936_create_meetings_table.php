@@ -22,6 +22,8 @@ class CreateMeetingsTable extends Migration
             $table->string('guests');
             $table->dateTime('booking_time');
             $table->string('timezone');
+            $table->dateTime('server_time');
+            $table->tinyInteger('completed')->default(0);
             $table->timestamps();
         });
     }

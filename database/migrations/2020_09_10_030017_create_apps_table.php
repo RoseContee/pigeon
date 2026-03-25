@@ -16,6 +16,7 @@ class CreateAppsTable extends Migration
         Schema::create('apps', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('image')->nullable();
             $table->tinyInteger('active')->default(0);
             $table->timestamps();
         });

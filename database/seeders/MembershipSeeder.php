@@ -21,7 +21,11 @@ class MembershipSeeder extends Seeder
             'name' => 'Free',
             'price' => 0,
             'limitation' => 10,
-            'description' => '',
+            'event' => 1,
+            'schedule' => 50,
+            'description' => '10 Limitation
+1 Events
+10 Sessions',
             'active' => 1,
             'created_at' => $now,
             'updated_at' => $now,

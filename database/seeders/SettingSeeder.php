@@ -92,5 +92,12 @@ class SettingSeeder extends Seeder
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+
+        Setting::insert([
+            'meta_key' => 'how_video',
+            'meta_value' => 'https://www.youtube.com/watch?v=qLdslXvkUdY',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
     }
 }

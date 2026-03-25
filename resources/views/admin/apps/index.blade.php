@@ -36,6 +36,7 @@
                             <tr>
                                 <th>No</th>
                                 <th>Name</th>
+                                <th>Image</th>
                                 <th>Active</th>
                                 <th>Action</th>
                             </tr>
@@ -47,16 +48,19 @@
                                     <td>{{ $index++ }}</td>
                                     <td>{{ $app['name'] }}</td>
                                     <td>
+                                        @if (!empty($app['image']))
+                                            <img src="{{ asset('public/uploads/'.$app['image']) }}"
+                                                 alt="App Image" style="width: 150px;">
+                                        @endif
+                                    </td>
+                                    <td>
                                         <button class="btn @if ($app['active']) btn-success @else btn-danger @endif"
                                             onclick="activeApp($(this))" data-id="{{ $app['id'] }}">
                                             {{ $app['active'] ? 'Active' : 'Deactive' }}
                                         </button>
                                     </td>
-                                    <td>
+                                    <td style="width: 100px;">
                                         <a href="{{ route('admin.edit-app', $app['id']) }}" class="btn text-primary"><i class="fa fa-edit"></i></a>
-                                        @if ($index > 3)
-                                            <button class="btn text-danger" onclick="deleteApp({{ $app['id'] }})"><i class="fa fa-trash"></i></button>
-                                        @endif
                                     </td>
                                 </tr>
                             @endforeach
@@ -72,34 +76,6 @@
         <!-- /.row -->
     </section>
     <!-- /.content -->
-
-    <!-- Delete Modal -->
-    <div class="modal fade" id="delete-modal" role="dialog">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title"><i class="fa fa-warning text-warning"></i> Delete App</h4>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">×</span>
-                    </button>
-                </div>
-                <form action="{{ route('admin.delete-app') }}" method="POST">
-                    @method('DELETE')
-                    @csrf
-                    <input type="hidden" name="app_id" value="" required>
-                    <div class="modal-body">
-                        <p>Are you sure to delete this app?</p>
-                    </div>
-                    <div class="modal-footer justify-content-between">
-                        <button type="button" class="btn btn-default" data-dismiss="modal">No</button>
-                        <button type="submit" class="btn btn-danger">Yes</button>
-                    </div>
-                </form>
-            </div>
-            <!-- /.modal-content -->
-        </div>
-        <!-- /.modal-dialog -->
-    </div>
 @endsection
 
 @section('style')
@@ -159,12 +135,6 @@
                     location.reload(true);
                 }
             });
-        }
-
-        function deleteApp(id) {
-            if (id < 3) return;
-            $('#delete-modal [name=app_id]').val(id);
-            $('#delete-modal').modal('show');
         }
     </script>
 @endsection
