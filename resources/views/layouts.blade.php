@@ -15,6 +15,10 @@
     <!-- Google Font: Source Sans Pro -->
     <link href="{{ asset('public/assets/fonts/googlefonts/css/fonts.css') }}" rel="stylesheet">
     <link href="{{ asset('public/assets/fonts/font-awesome/css/font-awesome.css') }}" rel="stylesheet">
+    <!-- Date picker -->
+    <link rel="stylesheet" href="{{ asset('public/assets/plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css') }}">
+    <!-- Toastr -->
+    <link rel="stylesheet" href="{{ asset('public/assets/plugins/toastr/toastr.min.css') }}">
     <!-- Theme style -->
     <link rel="stylesheet" href="{{ asset('public/assets/dist/css/adminlte.min.css') }}">
 
@@ -83,9 +87,9 @@
                         <a class="btn btn-primary btn-regal-blue text-white" href="{{ route('home') }}">Account</a>
                     </li>
                 @else
-                    <li class="nav-item">
+                    {{--<li class="nav-item">
                         <a class="btn btn-primary bg-regal-blue text-white" href="#" data-toggle="modal" data-target="#login-modal">Sign in for free</a>
-                    </li>
+                    </li>--}}
                 @endif
             </ul>
         </nav>
@@ -113,17 +117,43 @@
     </div>
 </div>
 
-<footer class="text-white-50 py-4">
-    <div class="container text-center text-sm-left">
-        <div class="float-sm-right d-sm-inline-block mb-3 mb-sm-0">
-            <a href="{{ route('privacy') }}" class="text-white-50 mr-5">Privacy Policy</a> <a href="{{ route('terms') }}" class="text-white-50">Terms of Use</a>
+<footer class="text-white-50 text-center py-4">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 mb-3">
+                <a href="{{ route('support') }}" class="text-white-50 mr-3 mr-sm-5">Get Support</a>
+                <a href="{{ route('knowledgebase') }}" class="text-white-50 mr-3 mr-sm-5">Knowledge Base</a>
+                <a href="{{ route('faq') }}" class="text-white-50 mr-0 mr-md-5">FAQ</a>
+                <br class="d-sm-block d-md-none">
+                <a href="{{ route('privacy') }}" class="text-white-50 mr-5">Privacy Policy</a>
+                <a href="{{ route('terms') }}" class="text-white-50">Terms of Use</a>
+            </div>
+            <div class="col-12">
+                <strong>&copy; </strong> 2020 <span class="text-capitalize">{{ $setting['site_name'] }}</span> Labs
+                <a href="{{ $setting['facebook_link'] }}" class="text-white-50 px-1 ml-2 ml-md-4"><i class="fa fa-facebook"></i></a>
+                <a href="{{ $setting['twitter_link'] }}" class="text-white-50 px-1 ml-2 ml-md-4"><i class="fa fa-twitter"></i></a>
+                <a href="{{ $setting['linkedin_link'] }}" class="text-white-50 px-1 ml-2 ml-md-4"><i class="fa fa-linkedin"></i></a>
+            </div>
         </div>
-        <strong>&copy; </strong> 2020 <span class="text-capitalize">{{ $setting['site_name'] }}</span> Labs
-        <a href="{{ $setting['facebook_link'] }}" class="text-white-50 px-1 ml-4"><i class="fa fa-facebook"></i></a>
-        <a href="{{ $setting['twitter_link'] }}" class="text-white-50 px-1 ml-4"><i class="fa fa-twitter"></i></a>
-        <a href="{{ $setting['linkedin_link'] }}" class="text-white-50 px-1 ml-4"><i class="fa fa-linkedin"></i></a>
     </div>
 </footer>
+
+@if (empty($_COOKIE['cookies-policy']))
+    <div id="cookies-policy" style="display: none;">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    Pigeon uses cookies to understand your event preferences and make sure you have the best experience on our site.
+                    By using this platform, you accept our use of <a href="{{ route('cookies-policy') }}">cookies</a>.
+                </div>
+                <div class="col-12 text-center mt-2">
+                    <button id="accept-cookies" class="btn btn-success btn-flat py-0 mr-3">Accept</button>
+                    <button id="decline-cookies" class="btn btn-default btn-flat py-0">Decline</button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
 
 @if (!Auth::check())
     <!-- Login Modal -->
@@ -160,6 +190,43 @@
 <script src="{{ asset('public/assets/plugins/jquery/jquery.min.js') }}"></script>
 <!-- Bootstrap 4 -->
 <script src="{{ asset('public/assets/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+<!-- InputMask -->
+<script src="{{ asset('public/assets/plugins/moment/moment.min.js') }}"></script>
+<!-- date picker -->
+<script src="{{ asset('public/assets/plugins/tempusdominus-bootstrap-4/js/tempusdominus-bootstrap-4.min.js') }}"></script>
+<!-- Toastr -->
+<script src="{{ asset('public/assets/plugins/toastr/toastr.min.js') }}"></script>
+
+<script type="text/javascript">
+    $(function() {
+        @if (empty($_COOKIE['cookies-policy']))
+            setTimeout(function() {
+                $('#cookies-policy').show();
+            }, 1500);
+
+            $('#accept-cookies').on('click', function() {
+                $('#cookies-policy').hide();
+                document.cookie = "cookies-policy=true; expires=Thu, 31 Dec " + (new Date().getFullYear() + 100) + " 12:00:00 UTC";
+            });
+
+            $('#decline-cookies').on('click', function() {
+                location.href = "{{ route('cookies-policy') }}";
+            });
+        @endif
+
+        @if (!Auth::check() && !empty($where) && $where == 'extension')
+            $('#login-modal').modal('show');
+        @endif
+
+        @if ($info_message = session('info_message'))
+            toastr.success('{{ $info_message }}');
+        @endif
+
+        @if ($error_message = session('error_message'))
+            toastr.error('{{ $error_message }}');
+        @endif
+    });
+</script>
 
 @yield('script')
 

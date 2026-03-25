@@ -62,12 +62,12 @@
                                                     </div>
                                                 </div>
                                                 <div class="package_feature_list">
-                                                    <ul>
+                                                    <ul class="text-left">
                                                         <?php
                                                             $descriptions = explode("\n", $membership['description']);
                                                         ?>
                                                         @foreach ($descriptions as $description)
-                                                            <li>{{ $description }}</li>
+                                                            <li class="px-2 py-0">{{ $description }}</li>
                                                         @endforeach
                                                     </ul>
                                                 </div>

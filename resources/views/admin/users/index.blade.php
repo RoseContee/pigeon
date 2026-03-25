@@ -26,10 +26,6 @@
         <div class="row">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header">
-                        <a href="{{ route('admin.add-user') }}" class="btn btn-primary"><i class="fa fa-plus"></i> New User</a>
-                    </div>
-                    <!-- /.card-header -->
                     <div class="card-body">
                         <table id="users" class="table table-bordered table-hover">
                             <thead>
@@ -40,6 +36,8 @@
                                 <th>Email</th>
                                 <th>Guests / Meetings</th>
                                 <th>Limitation</th>
+                                <th>Event</th>
+                                <th>Session</th>
                                 <th>Membership</th>
                                 <th>Start / End Membership</th>
                                 <th>Active</th>
@@ -64,8 +62,14 @@
                                         <a href="{{ route('admin.user-meetings', $user['id']) }}">{{ $user['meetings']->count() }}</a>
                                     </td>
                                     <td>
-                                        <div id="user-limitation-{{ $user['id'] }}" class="btn">{{ $user['limitation'] }}</div>
-                                        <button class="btn text-primary float-right" onclick="editLimitation($(this))"
+                                        <span id="user-limitation-{{ $user['id'] }}" class="btn px-0 py-1">{{ $user['limitation'] }}</span>
+                                        <button class="btn text-primary px-2 py-1 float-right" onclick="editLimitation($(this))"
+                                                data-id="{{ $user['id'] }}"><i class="fa fa-edit"></i></button>
+                                    </td>
+                                    <td>{{ $user['event'] }}</td>
+                                    <td>
+                                        <span id="user-schedule-{{ $user['id'] }}" class="btn px-0 py-1">{{ $user['schedule'] }}</span>
+                                        <button class="btn text-primary px-2 py-1 float-right" onclick="editSchedule($(this))"
                                                 data-id="{{ $user['id'] }}"><i class="fa fa-edit"></i></button>
                                     </td>
                                     <td>{{ empty($user['membership']) ? 'Removed by admin' : $user['membership']['name'] }}</td>
@@ -119,6 +123,37 @@
                 <div class="modal-footer justify-content-between">
                     <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-success" onclick="saveLimitation()">Save</button>
+                </div>
+            </div>
+            <!-- /.modal-content -->
+        </div>
+        <!-- /.modal-dialog -->
+    </div>
+
+    <!-- Edit Limitation Modal -->
+    <div class="modal fade" id="schedule-modal" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title"><i class="fa fa-info-circle text-info"></i> Schedule Event</h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">×</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <div class="row">
+                            <div class="col-12">
+                                <label for="schedule" class="control-label">Session: <span class="required">*</span></label>
+                                <input type="number" name="schedule" id="schedule" class="form-control" placeholder="Schedule Event" min="0" required>
+                                <input type="hidden" id="schedule-user-id">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="saveSchedule()">Save</button>
                 </div>
             </div>
             <!-- /.modal-content -->
@@ -266,6 +301,61 @@
                     }
                     $('#loading').hide();
                     $('#limitation-modal').modal('hide');
+                },
+                error: function(data) {
+                    toastr.error('Some went error.');
+                    location.reload(true);
+                }
+            })
+        }
+
+        function editSchedule(that) {
+            var id = that.data('id');
+            var schedule = $('#user-schedule-' + id).text().trim();
+            $('#schedule-user-id').val(id);
+            $('#schedule').val(schedule);
+            $('#schedule-modal').modal('show');
+        }
+
+        function saveSchedule() {
+            var id = $('#schedule-user-id').val();
+            var schedule = $('#schedule').val();
+            if (id == '') {
+                alert('Some went error. Please try again.');
+                $('#schedule-modal').modal('hide');
+                return;
+            }
+            if (schedule == '') {
+                alert('Please input schedule number.');
+                $('#schedule').focus();
+                return;
+
+            }
+            if (schedule < 0) {
+                alert('Schedule number should be greater than 0.');
+                $('#schedule').focus();
+                return;
+            }
+            $.ajax({
+                method: 'POST',
+                url: '{{ route('admin.user-schedule') }}',
+                data: {
+                    user_id: id,
+                    schedule: schedule,
+                },
+                beforeSend: function() {
+                    $('#loading').show();
+                },
+                success: function(data) {
+                    if (data.result == 'success') {
+                        toastr.success('Successfully Saved.');
+                        $('#user-schedule-' + id).text(schedule);
+                    } else {
+                        toastr.error('Cannot find user');
+                        location.reload(true);
+                    }
+                    $('#loading').hide();
+                    $('#schedule-modal').modal('hide');
                 },
                 error: function(data) {
                     toastr.error('Some went error.');

@@ -2,32 +2,23 @@
 
 use Illuminate\Support\Facades\Route;
 
+
 /*
 |--------------------------------------------------------------------------
-| Web Routes
+| Website Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
-|
 */
-
 Route::group([
     'namespace' => 'App\Http\Controllers',
 ], function() {
-
-    Route::get('/', 'IndexController@index')->name('index');
-
-    Route::get('terms', 'IndexController@terms')->name('terms');
-    Route::get('privacy', 'IndexController@privacy')->name('privacy');
-	Route::get('how', 'IndexController@how')->name('how');
-
-    Route::get('verify-email/{name}', 'AuthController@verifyEmail')->name('verify-email');
-
+    /*
+    |--------------------------------------------------------------------------
+    | User Routes
+    |--------------------------------------------------------------------------
+    */
     Route::group([
         'middleware' => ['guest'],
-    ], function() {
+    ], function () {
         Route::get('login', 'AuthController@login')->name('login');
         Route::post('login', 'AuthController@postLogin');
 
@@ -42,14 +33,11 @@ Route::group([
 
         Route::get('auth/google', 'SocialAuthController@authGoogle')->name('auth-google');
         Route::get('auth/google/callback', 'SocialAuthController@authGoogleCallback');
-
-        //Route::get('auth/linkedin', 'SocialAuthController@authLinkedIn')->name('auth-linkedin');
-        //Route::get('auth/linkedin/callback', 'SocialAuthController@authLinkedInCallback');
     });
 
     Route::group([
         'middleware' => ['auth']
-    ], function() {
+    ], function () {
         Route::get('dashboard', 'HomeController@dashboard')->name('home');
 
         Route::get('profile', 'HomeController@profile')->name('profile');
@@ -65,25 +53,48 @@ Route::group([
         Route::delete('guest/delete', 'HomeController@deleteGuest')->name('delete-guest');
 
         Route::get('apps', 'HomeController@apps')->name('apps');
-        Route::get('app/{name}', 'HomeController@editApp')->name('edit-app');
-        Route::post('app/{name}', 'HomeController@postEditApp');
+
+        Route::get('availability', 'HomeController@availability')->name('availability');
+        Route::post('availability', 'HomeController@postAvailability');
+        Route::post('check-availability', 'HomeController@checkAvailability')->name('check-availability');
+
+        Route::get('schedules', 'HomeController@schedules')->name('schedules');
+        Route::get('new-schedule', 'HomeController@getSchedule')->name('new-schedule');
+        Route::post('new-schedule', 'HomeController@postSchedule');
+        Route::get('schedule/{name}', 'HomeController@getSchedule')->name('edit-schedule');
+        Route::post('schedule/{name}', 'HomeController@postSchedule');
+        Route::delete('delete-schedule', 'HomeController@deleteSchedule')->name('delete-schedule');
+        Route::post('active-schedule', 'HomeController@activeSchedule')->name('active-schedule');
+
+        Route::get('events', 'HomeController@events')->name('events');
+        Route::get('new-event', 'HomeController@getEvent')->name('new-event');
+        Route::post('new-event', 'HomeController@postEvent');
+        Route::get('event/{name}', 'HomeController@getEvent')->name('edit-event');
+        Route::post('event/{name}', 'HomeController@postEvent');
+        Route::delete('delete-event', 'HomeController@deleteEvent')->name('delete-event');
+        Route::post('active-event', 'HomeController@activeEvent')->name('active-event');
 
         Route::get('membership', 'HomeController@membership')->name('membership');
 
-        Route::get('logout', function() {
+        Route::get('logout', function () {
             Auth::logout();
             return redirect()->route('index');
         })->name('logout');
     });
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Routes
+    |--------------------------------------------------------------------------
+    */
     Route::group([
         'prefix' => 'admin',
         'namespace' => 'Admin',
-    ], function() {
+    ], function () {
         Route::group([
             'middleware' => ['guest:admin'],
-        ], function() {
+        ], function () {
             Route::get('login', 'AuthController@login')->name('admin.login');
             Route::post('login', 'AuthController@postLogin');
 
@@ -98,7 +109,7 @@ Route::group([
 
         Route::group([
             'middleware' => ['auth:admin'],
-        ], function() {
+        ], function () {
             Route::get('/', 'HomeController@dashboard')->name('admin');
 
             Route::get('platforms', 'HomeController@platforms')->name('admin.platforms');
@@ -111,7 +122,6 @@ Route::group([
 
             Route::get('apps', 'HomeController@apps')->name('admin.apps');
             Route::post('app/active', 'HomeController@activeApp')->name('admin.active-app');
-            Route::delete('app/delete', 'HomeController@deleteApp')->name('admin.delete-app');
             Route::get('app/add', 'HomeController@editApp')->name('admin.add-app');
             Route::post('app/add', 'HomeController@postEditApp');
             Route::get('app/edit/{id}', 'HomeController@editApp')->name('admin.edit-app');
@@ -142,6 +152,7 @@ Route::group([
 
             Route::get('users', 'HomeController@users')->name('admin.users');
             Route::post('user/limitation', 'HomeController@userLimitation')->name('admin.user-limitation');
+            Route::post('user/schedule', 'HomeController@userSchedule')->name('admin.user-schedule');
             Route::post('user/active', 'HomeController@activeUser')->name('admin.active-user');
             Route::delete('user/delete', 'HomeController@deleteUser')->name('admin.delete-user');
             Route::get('user/add', 'HomeController@editUser')->name('admin.add-user');
@@ -155,8 +166,10 @@ Route::group([
             Route::post('user/{id}/guest/add', 'HomeController@postAddUserGuest');
             Route::get('user/{id}/guest/edit/{guest_id}', 'HomeController@addUserGuest')->name('admin.edit-user-guest');
             Route::post('user/{id}/guest/edit/{guest_id}', 'HomeController@postAddUserGuest');
-
             Route::get('user/{id}/meetings', 'HomeController@userMeetings')->name('admin.user-meetings');
+
+            Route::get('mail-template/{name}', 'HomeController@mailTemplate')->name('admin.mail-template');
+            Route::post('mail-template/{name}', 'HomeController@postMailTemplate');
 
             Route::get('setting', 'HomeController@setting')->name('admin.setting');
             Route::post('setting', 'HomeController@postSetting');
@@ -164,10 +177,42 @@ Route::group([
             Route::get('profile', 'HomeController@profile')->name('admin.profile');
             Route::post('profile', 'HomeController@postProfile');
 
-            Route::get('logout', function() {
+            Route::get('logout', function () {
                 Auth::guard('admin')->logout();
                 return redirect()->route('admin.login');
             })->name('admin.logout');
         });
     });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Web Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/', 'IndexController@index')->name('index');
+    Route::get('/home', 'IndexController@home');
+
+    Route::get('privacy', 'IndexController@privacy')->name('privacy');
+    Route::get('terms', 'IndexController@terms')->name('terms');
+    Route::get('how', 'IndexController@how')->name('how');
+    Route::get('knowledgebase', 'IndexController@knowledgebase')->name('knowledgebase');
+    Route::get('knowledgebase/getting-started', 'IndexController@gettingStarted')->name('getting-started');
+    Route::get('knowledgebase/connecting-zoom', 'IndexController@connectingZoom')->name('connecting-zoom');
+    Route::get('knowledgebase/faq', 'IndexController@faq')->name('faq');
+    Route::get('knowledgebase/cookies-policy', 'IndexController@cookiesPolicy')->name('cookies-policy');
+    Route::get('support', 'IndexController@support')->name('support');
+    Route::post('support', 'IndexController@postSupport');
+
+    Route::get('verify-email/{name}', 'AuthController@verifyEmail')->name('verify-email');
+
+    Route::get('auth/zoom', 'SocialAuthController@authZoom')->name('auth-zoom');
+    Route::get('auth/zoom/callback', 'SocialAuthController@authZoomCallback');
+    Route::get('auth/zoom/callback-dev', 'SocialAuthController@authZoomCallbackDev');
+    Route::post('deauth/zoom', 'SocialAuthController@deauthZoom')->name('deauth-zoom');
+
+    Route::post('schedule/{name}/{event}', 'IndexController@scheduleEvent')->name('schedule-event');
+    Route::get('time-slots', 'IndexController@timeSlots')->name('time-slots');
+    Route::get('{name}', 'IndexController@userEvents')->name('user-events');
+    Route::get('{name}/{event}', 'IndexController@eventCalendar')->name('user-event');
 });

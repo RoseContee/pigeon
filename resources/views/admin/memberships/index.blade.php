@@ -39,6 +39,8 @@
                                 <th>Package</th>
                                 <th>Price</th>
                                 <th>Limitation</th>
+                                <th>Event</th>
+                                <th>Session</th>
                                 <th>Description</th>
                                 <th>Active</th>
                                 <th>Action</th>
@@ -54,6 +56,8 @@
                                     <td>{{ $membership['membership_package']['name'] }}</td>
                                     <td>${{ $membership['price'] }}</td>
                                     <td>{{ $membership['limitation'] }}</td>
+                                    <td>{{ $membership['event'] }}</td>
+                                    <td>{{ $membership['schedule'] }}</td>
                                     <td style="white-space: pre;">{{ $membership['description'] }}</td>
                                     <td>
                                         <button class="btn @if ($membership['active']) btn-success @else btn-danger @endif"

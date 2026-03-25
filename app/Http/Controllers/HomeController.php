@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\EmailChagned;
 use App\Models\App;
 use App\Models\Guest;
 use App\Models\Meeting;
 use App\Models\Membership;
 use App\Models\MembershipPackage;
 use App\Models\User;
+use App\Models\UserEvent;
 use App\Models\UserMeta;
+use App\Models\UserSchedule;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,43 +18,36 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class HomeController extends Controller
 {
     public function __construct(Guard $auth) {
-        //$this->middleware('auth');
     }
 
     public function dashboard() {
-        $now = date('Y-m-d H:i:s', strtotime('-1 days'));
-        $timezone = getTimezone();
-        if ($timezone != 'Unknown') {
-            date_default_timezone_set($timezone);
-            $now = date('Y-m-d H:i:s', strtotime('-1 days'));
-        }
-        $meetings = Meeting::where('user_id', Auth::id())
-            ->where('booking_time', '>=', $now)
-            ->orderBy('booking_time', 'asc')
-            ->get();
         $now = date('Y-m-d');
+        $meetings = Meeting::where('user_id', Auth::id())
+            ->where('server_time', '>=', $now)
+            ->orderBy('server_time', 'asc')
+            ->get();
         $today_meetings = $upcomings = [];
         foreach ($meetings as $meeting) {
-            $meeting_time = date_create($meeting['booking_time'], timezone_open($meeting['timezone']));
-            if ($timezone != 'Unknown') {
-                date_timezone_set($meeting_time, timezone_open($timezone));
-            }
-            $meeting['booking_time'] = $meeting_time->format('Y-m-d H:i:s');
-            if (stripos($meeting['booking_time'], $now) !== false) {
+            if (stripos($meeting['server_time'], $now) !== false) {
                 $today_meetings[] = $meeting;
-            } else if ($meeting['booking_time'] >= $now.' 00:00:00') {
+            } else if ($meeting['server_time'] >= $now.' 00:00:00') {
                 $upcomings[] = $meeting;
             }
         }
-
+        $timezone = getTimezone();
+        if ($timezone != 'Unknown') {
+            date_default_timezone_set($timezone);
+        }
         return view('user.dashboard', [
             'menu' => 'Dashboard',
             'meetings' => $today_meetings,
             'upcomings' => $upcomings,
+            'timezone' => $timezone,
         ]);
     }
 
@@ -88,14 +82,6 @@ class HomeController extends Controller
         UserMeta::saveSetting(Auth::id(), $request->only(['headline', 'position', 'secondary_email']));
         $message = '';
         if (!empty($old_email)) {
-            try {
-                $data = [
-                    'name' => $user['name'],
-                    'email' => $user['email'],
-                ];
-                Mail::to($old_email)->send(new EmailChagned($data));
-            } catch(\Exception $exception) {
-            }
             $message = '. And your account email has been updated.';
         }
         return back()->with('info_message', 'Successfully saved'.$message);
@@ -103,7 +89,7 @@ class HomeController extends Controller
 
     public function meetings() {
         $meetings = Meeting::where('user_id', Auth::id())
-            ->orderBy('booking_time', 'desc')
+            ->orderBy('server_time', 'desc')
             ->get();
         $timezone = getTimezone();
         if ($timezone != 'Unknown') {
@@ -186,67 +172,332 @@ class HomeController extends Controller
     public function deleteGuest(Request $request) {
         $email = $request['email'];
         $guest = Guest::where('user_id', Auth::id())->where('email', $email)->first();
-        if (empty($guest)) {
-            return back()->with('error_message', 'Cannot find guest info');
-        }
+        if (empty($guest)) return back()->with('error_message', 'Cannot find guest info');
         $guest->delete();
         return back()->with('info_message', 'Guest has been removed');
     }
 
     public function apps() {
-        $apps = App::active()->get();
-        $user_setting = UserMeta::getSetting(Auth::id());
+        $apps = App::get();
+        $user_meta = UserMeta::getSetting(Auth::id());
         return view('user.apps.index', [
-            'menu' => 'Apps',
             'apps' => $apps,
-            'app_data' => $user_setting,
-        ]);
+            'user_meta' => $user_meta,
+        ])->withMenu('Apps');
     }
 
-    public function editApp($name) {
-        $app = App::where('name', $name)->first();
-        if (empty($app)) {
-            return back()->with('error_message', 'Cannot find app data');
+    public function availability() {
+        if (!Auth::user()->slug) {
+            $link = strtolower(explode(' ', Auth::user()->name)[0]);
+            $i = 0;
+            while (User::where('slug', $link)->first()) {
+                if ($i++ == 0) $link .= date('y');
+                else $link .= rand(0, 9);
+            }
+            return view('user.availability.availability', [
+                'link' => $link,
+            ])->withMenu('Availability');
         }
-        $app_data = UserMeta::getSetting(Auth::id(), 'app_%_'.$app['id'], 'like');
-        return view('user.apps.edit', [
-            'menu' => 'Apps',
-            'app' => $app,
-            'app_data' => $app_data,
-        ]);
+        return redirect()->route('events');
     }
 
-    public function postEditApp($name, Request $request) {
-        $app = App::where('name', $name)->first();
-        if (empty($app)) {
-            return back()->with('error_message', 'Cannot find app data');
-        }
-        $rule = [];
-        if ($app['id'] == 1) {
-            $rule = [
-                'link' => ['required', 'url'],
-            ];
-        } else if ($app['id'] == 2) {
-            $rule = [
-                'link' => ['required', 'url'],
-                'passcode' => ['required'],
-            ];
-        }
+    public function postAvailability(Request $request) {
+        $rule = [
+            'link' => ['required', 'unique:users,slug'],
+        ];
         $validator = Validator::make($request->all(), $rule);
         if ($validator->fails()) {
             return back()->withErrors($validator)->withInput();
         }
-        $data = [];
-        if ($app['id'] == 1) {
-            $data['app_link_1'] = $request['link'];
-        } else if ($app['id'] == 2) {
-            $data = [
-                'app_link_2' => $request['link'],
-                'app_passcode_2' => $request['passcode'],
-            ];
+        try {
+            $user = User::find(Auth::id());
+            $user['slug'] = $request['link'];
+            $user->save();
+        } catch (\Exception $exception) {
+            return back()->withInput()->with('error', 'The link has already been taken.');
         }
-        UserMeta::saveSetting(Auth::id(), $data);
-        return redirect()->route('apps')->with('info_message', '');
+        return redirect()->route('events');
+    }
+
+    public function checkAvailability(Request $request) {
+        if (!Auth::user()->slug) return redirect()->route('availability');
+        $old = $link = $request['link'];
+        $i = 0;
+        while (User::where('slug', $link)->first()) {
+            if ($i++ == 0) $link .= date('y');
+            else $link .= rand(0, 9);
+        }
+        if ($i == 0) {
+            return response([
+                'available' => true,
+                'suggestions' => view('user.partials.availability.suggestions').'',
+            ]);
+        }
+        $suggestions = [$link];
+        $link = $old;
+        while (User::where('slug', $link)->first() || in_array($link, $suggestions)) {
+            $link .= rand(0, 9);
+        }
+        $suggestions[] = $link;
+        $link = $old;
+        while (User::where('slug', $link)->first() || in_array($link, $suggestions)) {
+            $link .= rand(0, 9);
+        }
+        $suggestions[] = $link;
+        return response([
+            'available' => false,
+            'suggestions' => view('user.partials.availability.suggestions', ['suggestions' => $suggestions]).'',
+        ]);
+    }
+
+    public function schedules() {
+        if (!Auth::user()->slug) return redirect()->route('availability');
+        $schedules = UserSchedule::where('user_id', Auth::id())->get();
+        return view('user.availability.schedules.index', [
+            'schedules' => $schedules,
+        ])->withMenu('Schedules');
+    }
+
+    public function getSchedule($slug = null) {
+        if (!Auth::user()->slug) return redirect()->route('availability');
+        $schedule = UserSchedule::where('user_id', Auth::id())->where('slug', $slug)->first();
+        if ($slug && empty($schedule)) return back()->with('error_message', 'Cannot find schedule info');
+        return view('user.availability.schedules.add', [
+            'schedule' => $schedule,
+        ])->withMenu('Schedules');
+    }
+
+    public function postSchedule($slug = null, Request $request) {
+        if (!Auth::user()->slug) return redirect()->route('availability');
+        $rule = [
+            'name' => ['required'],
+            'mon' => ['nullable', 'array'],
+            'mon_applies' => ['nullable', 'array'],
+            'tue' => ['nullable', 'array'],
+            'tue_applies' => ['nullable', 'array'],
+            'wed' => ['nullable', 'array'],
+            'wed_applies' => ['nullable', 'array'],
+            'thu' => ['nullable', 'array'],
+            'thu_applies' => ['nullable', 'array'],
+            'fri' => ['nullable', 'array'],
+            'fri_applies' => ['nullable', 'array'],
+            'sat' => ['nullable', 'array'],
+            'sat_applies' => ['nullable', 'array'],
+            'sun' => ['nullable', 'array'],
+            'status' => ['in:0,1'],
+        ];
+        $validator = Validator::make($request->all(), $rule);
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+        $schedule = UserSchedule::where('user_id', Auth::id())->where('slug', $slug)->first();
+        if ($slug && empty($schedule)) return back()->with('error_message', 'Cannot find schedule info');
+        if (empty($schedule)) $schedule = new UserSchedule;
+        $schedule['user_id'] = Auth::id();
+        $schedule['name'] = $request['name'];
+        if (empty($slug)) $schedule['slug'] = rand();
+        $weeks = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+        foreach($weeks as $week) {
+            foreach($weeks as $w) {
+                if ($week == $w) break;
+                if(empty($$week) && in_array($week, $request[$w.'_applies'] ?: [])) {
+                    $$week = $schedule[$w];
+                }
+            }
+            if (empty($$week)) {
+                $$week = implode(',', $request[$week] ?: []);
+            }
+            $schedule[$week] = $$week;
+        }
+        $schedule['active'] = $request['status'];
+        $schedule->save();
+        if (empty($slug)) {
+            $schedule['slug'] = md5($schedule['id']);
+            $schedule->save();
+        }
+        return redirect()->route('schedules')->with('info_message', 'Successfully done');
+    }
+
+    public function deleteSchedule(Request $request) {
+        $schedule = UserSchedule::where('user_id', Auth::id())->where('slug', $request['link'])->first();
+        if (empty($schedule)) return back()->with('error_message', 'Cannot find schedule info');
+        $schedule->delete();
+        return back()->with('info_message', 'Schedule has been removed');
+    }
+
+    public function activeSchedule(Request $request) {
+        if (!Auth::user()->slug) return response(['status' => 'failed']);
+        $rule = [
+            'slug' => ['required', 'exists:user_schedules'],
+        ];
+        $validator = Validator::make($request->all(), $rule);
+        if ($validator->fails()) {
+            return response([
+                'status' => 'failed',
+            ]);
+        }
+        $schedule = UserSchedule::where('user_id', Auth::id())->where('slug', $request['slug'])->first();
+        if (empty($schedule)) return response(['status' => 'failed']);
+        $schedule['active'] = ($schedule['active'] + 1) % 2;
+        $schedule->save();
+        return response([
+            'status' => 'success',
+            'active' => $schedule['active'],
+        ]);
+    }
+
+    public function events() {
+        if (!Auth::user()->slug) return redirect()->route('availability');
+        $events = UserEvent::where('user_id', Auth::id())->get();
+        $link = route('index').'/'.Auth::user()->slug;
+        return view('user.availability.events.index', [
+            'link' => $link,
+            'events' => $events,
+        ])->withMenu('Events');
+    }
+
+    public function getEvent($slug = null) {
+        if (!Auth::user()->slug) return redirect()->route('availability');
+        $event = UserEvent::where('user_id', Auth::id())->where('slug', $slug)->first();
+        if ($slug && empty($event)) return back()->with('error_message', 'Cannot find event info');
+        $schedules = UserSchedule::active()->where('user_id', Auth::id())->get();
+        $current_event = UserEvent::active()->where('user_id', Auth::id())->count();
+        return view('user.availability.events.add', [
+            'event' => $event,
+            'schedules' => $schedules,
+            'current_event' => $current_event,
+        ])->withMenu('Events');
+    }
+
+    public function postEvent($slug = null, Request $request) {
+        if (!Auth::user()->slug) return redirect()->route('availability');
+        $current_event = UserEvent::active()->where('user_id', Auth::id())->count();
+        if (empty($slug) && $current_event >= Auth::user()->event) {
+            return redirect()->route('membership');
+        }
+        $rule = [
+            'name' => ['required'],
+            'description' => ['required'],
+            'date_range' => ['required', Rule::in(['days', 'daterange', 'indefinite'])],
+            'days' => ['required_if:date_range,days', 'min:1'],
+            'daterange' => ['required_if:date_range,daterange'],
+            'time_slot' => ['required', 'in:schedule,custom'],
+            'schedule' => ['required_if:time_slot,schedule'],
+            'mon' => ['nullable', 'array'],
+            'mon_applies' => ['nullable', 'array'],
+            'tue' => ['nullable', 'array'],
+            'tue_applies' => ['nullable', 'array'],
+            'wed' => ['nullable', 'array'],
+            'wed_applies' => ['nullable', 'array'],
+            'thu' => ['nullable', 'array'],
+            'thu_applies' => ['nullable', 'array'],
+            'fri' => ['nullable', 'array'],
+            'fri_applies' => ['nullable', 'array'],
+            'sat' => ['nullable', 'array'],
+            'sat_applies' => ['nullable', 'array'],
+            'sun' => ['nullable', 'array'],
+            'duration' => ['required', 'numeric', 'between:1,60'],
+            'break_time' => ['required', 'numeric', 'between:0,60'],
+            'status' => ['in:0,1'],
+        ];
+        $validator = Validator::make($request->all(), $rule);
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+        $event = UserEvent::where('user_id', Auth::id())->where('slug', $slug)->first();
+        if ($slug && empty($event)) return back()->with('error_message', 'Cannot find event info');
+        if (empty($event)) $event = new UserEvent;
+        $event['user_id'] = Auth::id();
+        $event['name'] = $request['name'];
+        if (empty($slug)) {
+            $slug = strtolower(preg_replace("/[^A-Za-z0-9]/", '-', $request['name']));
+            while(UserEvent::where('user_id', Auth::id())->where('slug', $slug)->first()) {
+                $slug .= '-';
+            }
+            $event['slug'] = $slug;
+        }
+        $event['description'] = $request['description'];
+        $date_range = $request['date_range'];
+        if ($date_range == 'days') {
+            $event['start_date'] = date('Y-m-d');
+            $event['end_date'] = date('Y-m-d', strtotime('+'.$request['days'].'days'));
+        } else if ($date_range == 'daterange') {
+            $date = explode(' - ', $request['daterange']);
+            $event['start_date'] = date('Y-m-d', strtotime($date[0]));
+            $event['end_date'] = date('Y-m-d', strtotime($date[1]));
+        } else {
+            $event['start_date'] = null;
+            $event['end_date'] = null;
+        }
+        if ($request['time_slot'] == 'schedule') {
+            $event['schedule_id'] = $request['schedule'];
+            $event['mon'] = $event['tue'] = $event['wed'] = $event['thu'] = null;
+            $event['fri'] = $event['sat'] = $event['sun'] = null;
+        } else {
+            $event['schedule_id'] = null;
+            $weeks = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+            foreach($weeks as $week) {
+                foreach($weeks as $w) {
+                    if ($week == $w) break;
+                    if(empty($$week) && in_array($week, $request[$w.'_applies'] ?: [])) {
+                        $$week = $event[$w];
+                    }
+                }
+                if (empty($$week)) {
+                    $$week = implode(',', $request[$week] ?: []);
+                }
+                $schedule[$week] = $$week;
+            }
+        }
+        $event['duration'] = $request['duration'];
+        $event['break_time'] = $request['break_time'];
+        $event['timezone'] = empty($request['timezone']) ? getTimezone() : $request['timezone'];
+        $event['active'] = $request['status'];
+        $event->save();
+        return redirect()->route('events')->with('info_message', 'Successfully done');
+    }
+
+    public function deleteEvent(Request $request) {
+        $event = UserEvent::where('user_id', Auth::id())->where('slug', $request['link'])->first();
+        if (empty($event)) return back()->with('error_message', 'Cannot find event info');
+        $event->delete();
+        return back()->with('info_message', 'Event has been removed');
+    }
+
+    public function activeEvent(Request $request) {
+        if (!Auth::user()->slug) return response(['status' => 'failed']);
+        $current_event = UserEvent::active()->where('user_id', Auth::id())->count();
+        if ($current_event >= Auth::user()->event) response(['status' => 'failed']);
+        $rule = [
+            'slug' => ['required', 'exists:user_events'],
+        ];
+        $validator = Validator::make($request->all(), $rule);
+        if ($validator->fails()) {
+            return response([
+                'status' => 'failed',
+            ]);
+        }
+        $event = UserEvent::where('user_id', Auth::id())->where('slug', $request['slug'])->first();
+        if (empty($event)) return response(['status' => 'failed']);
+        $expired = 0;
+        if (!empty($event['daterange'])) {
+            $end_date = date('Y-m-d', strtotime(explode(' - ', $event['daterange'])[1]));
+            if (date('Y-m-d') <= $end_date) {
+                $event['active'] = ($event['active'] + 1) % 2;
+            } else {
+                $event['active'] = 0;
+                $expired = 1;
+            }
+        } else {
+            $event['active'] = ($event['active'] + 1) % 2;
+        }
+        $event->save();
+        return response([
+            'status' => 'success',
+            'active' => $event['active'],
+            'expired' => $expired,
+            'event_link' => view('user.partials.availability.event-link', ['event' => $event]).'',
+        ]);
     }
 
     public function membership() {

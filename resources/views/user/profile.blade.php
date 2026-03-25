@@ -13,7 +13,7 @@
                             <img src="{{ empty(Auth::user()->avatar) ? asset('public/assets/images/default-user.png') : Auth::user()->avatar }}"
                                  alt="User Avatar" class="img-circle elevation-1" style="width: 150px;">
                         </div>
-                        <div class="input-group mt-3">
+                        <div class="input-group my-3">
                             <div class="custom-file">
                                 <input type="file" name="avatar" class="custom-file-input" id="avatar" accept="image/*"
                                 onchange="$('#avatar_label').text(this.value ? this.value.split('\\').pop() : 'Choose file')">
@@ -22,7 +22,7 @@
                         </div>
                         @if ($errors->has('avatar'))<span class="ml-2 small error">{{ $errors->first('avatar') }}</span>@endif
 
-                        <div class="form-group mt-3 @if ($errors->has('name')) has-error @endif">
+                        <div class="form-group @if ($errors->has('name')) has-error @endif">
                             <label for="name">Name: <span class="required">*</span></label>
                             <input type="text" id="name" name="name" class="form-control" required
                                    value="{{ old('name', Auth::user()->name) }}">

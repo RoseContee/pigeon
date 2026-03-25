@@ -28,6 +28,8 @@
     <link rel="stylesheet" href="{{ asset('public/assets/plugins/datatables/extensions/Buttons/css/buttons.dataTables.min.css') }}">
     <link rel="stylesheet" href="{{ asset('public/assets/plugins/datatables/extensions/Select/css/select.dataTables.min.css') }}">
     <link rel="stylesheet" href="{{ asset('public/assets/plugins/datatables/extensions/Responsive/css/dataTables.responsive.scss') }}">
+    <!-- daterange picker -->
+    <link rel="stylesheet" href="{{ asset('public/assets/plugins/daterangepicker/daterangepicker.css') }}">
     <!-- Theme style -->
     <link rel="stylesheet" href="{{ asset('public/assets/dist/css/adminlte.min.css') }}">
 
@@ -52,7 +54,7 @@
             </li>
         </ul>
 
-        <a href="{{ route('how') }}" target="_blank">How it Works?</a>
+        <a href="#" data-toggle="modal" data-target="#how-it-works-modal">How it Works?</a>
         <a href="https://chrome.google.com/webstore/detail/pigeon/adlljmlbangmeenndganepfkilcdihnm" target="_blank" class="btn btn-warning ml-auto">Install {{ $setting['site_name'] }}</a>
         <!-- Right navbar links -->
         <ul class="navbar-nav">
@@ -116,6 +118,38 @@
                             <p>Apps</p>
                         </a>
                     </li>
+                    @if (Auth::user()->slug)
+                        <li class="nav-item has-treeview @if(in_array($menu, ['Schedules', 'Events'])) menu-open @endif">
+                            <a href="#" class="nav-link">
+                                <i class="nav-icon fa fa-calendar-alt"></i>
+                                <p>
+                                    Pigeon Link
+                                    <i class="fas fa-angle-left right"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="{{ route('schedules') }}" class="nav-link @if($menu == 'Schedules') active @endif">
+                                        <i class="nav-icon fa fa-clock"></i>
+                                        <p>Schedules</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="{{ route('events') }}" class="nav-link @if($menu == 'Events') active @endif">
+                                        <i class="nav-icon fa fa-calendar-check"></i>
+                                        <p>Events</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    @else
+                        <li class="nav-item">
+                            <a href="{{ route('availability') }}" class="nav-link @if($menu == 'Availability') active @endif">
+                                <i class="nav-icon fa fa-calendar-alt"></i>
+                                <p>Pigeon Link</p>
+                            </a>
+                        </li>
+                    @endif
                     <li class="nav-item">
                         <a href="{{ route('membership') }}" class="nav-link @if($menu == 'Membership') active @endif">
                             <i class="nav-icon fa fa-cart-plus"></i>
@@ -138,6 +172,7 @@
     <!-- Content Wrapper. Contains page content -->
     <div class="content-wrapper">
         <!-- Main content -->
+        @if (!in_array($menu, ['Availability', 'Schedules', 'Events']))
         <?php
             $meetings = \App\Models\Meeting::where('user_id', Auth::id())->where('booking_time', 'like', date('Y-m-').'%')->get();
             $guests = \App\Models\Guest::where('user_id', Auth::id())->get();
@@ -242,6 +277,7 @@
             <!-- /.container-fluid -->
         </section>
         <!-- /.content -->
+        @endif
 
         @yield('content')
 
@@ -256,6 +292,41 @@
     </footer>
 </div>
 <!-- ./wrapper -->
+
+<?php
+$video = $setting['how_video'];
+if (stripos($video, 'youtube.com') !== false) {
+    $video = str_replace('/watch?v=', '/embed/', $video);
+    if (stripos($video, '?') !== false) {
+        $video .= '&enablejsapi=1';
+    } else {
+        $video .= '?enablejsapi=1';
+    }
+}
+?>
+<!-- How it works Modal -->
+<div class="modal fade" id="how-it-works-modal" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">How Pigeon works?</h4>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-12">
+                        <iframe id="how-it-works-video" src="{{ $video }}" frameborder="0" style="width: 100%; height: 50vh;"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer text-right">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+        <!-- /.modal-content -->
+    </div>
+    <!-- /.modal-dialog -->
+</div>
 
 <!-- jQuery -->
 <script src="{{ asset('public/assets/plugins/jquery/jquery.min.js') }}"></script>
@@ -275,6 +346,11 @@
 <script src="{{ asset('public/assets/plugins/datatables/extensions/Buttons/js/vfs_fonts.js') }}"></script>
 <script src="{{ asset('public/assets/plugins/datatables/extensions/Select/js/dataTables.select.js') }}"></script>
 <script src="{{ asset('public/assets/plugins/datatables/extensions/Responsive/js/dataTables.responsive.js') }}"></script>
+<!-- InputMask -->
+{{--<script src="../../plugins/inputmask/jquery.inputmask.bundle.js"></script>--}}
+<script src="{{ asset('public/assets/plugins/moment/moment.min.js') }}"></script>
+<!-- date-range-picker -->
+<script src="{{ asset('public/assets/plugins/daterangepicker/daterangepicker.js') }}"></script>
 <!-- AdminLTE App -->
 <script src="{{ asset('public/assets/dist/js/adminlte.js') }}"></script>
 
@@ -287,6 +363,10 @@
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             }
+        });
+
+        $('#how-it-works-modal').on('hidden.bs.modal', function () {
+            document.getElementById('how-it-works-video').contentWindow.postMessage('{"event":"command","func":"' + 'pauseVideo' + '","args":""}', '*');
         });
     });
 

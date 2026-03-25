@@ -35,6 +35,9 @@
                                             @else bg-gray @endif">{{ !empty($meeting['app']) ? $meeting['app']['name'] : 'Unknown' }}</span>
                                     </div>
                                     <div class="col-6 text-right">
+                                        <?php
+                                        $meeting['booking_time'] = convertTimezone($meeting['timezone'], $timezone, $meeting['booking_time']);
+                                        ?>
                                         {{ date('h:i A', strtotime($meeting['booking_time'])) }}
                                     </div>
                                 </div>
@@ -87,6 +90,9 @@
                         <div class="card">
                             <div class="card-body">
                                 <div class="row">
+                                    <?php
+                                    $upcoming['booking_time'] = convertTimezone($upcoming['timezone'], $timezone, $upcoming['booking_time']);
+                                    ?>
                                     <div class="col-12 text-bold">{{ date('d/m/Y', strtotime($upcoming['booking_time'])) }}</div>
                                     <div class="col-12">{{ date('h:i A', strtotime($upcoming['booking_time'])) }}</div>
                                 </div>

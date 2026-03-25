@@ -47,11 +47,7 @@
                                     <td>{{ $meeting['app']['name'] }}</td>
                                     <td>{{ $meeting['host_name'] }}</td>
                                     <?php
-                                    $meeting_time = date_create($meeting['booking_time'], timezone_open($meeting['timezone']));
-                                    if ($timezone != 'Unknown') {
-                                        date_timezone_set($meeting_time, timezone_open($timezone));
-                                    }
-                                    $meeting['booking_time'] = $meeting_time->format('Y-m-d H:i:s');
+                                    $meeting['booking_time'] = convertTimezone($meeting['timezone'], $timezone, $meeting['booking_time']);
                                     ?>
                                     <td>{{ date('d/m/Y h:i A', strtotime($meeting['booking_time'])) }}</td>
                                 </tr>

@@ -18,8 +18,8 @@ class AdminSeeder extends Seeder
         $now = now();
 
         Admin::insert([
-            'email' => 'admin@admin.com',
-            'password' => Hash::make(123456),
+            'email' => 'hello@joinpigeon.com',
+            'password' => Hash::make('Microsoft_888#23'),
             'created_at' => $now,
             'updated_at' => $now,
         ]);
