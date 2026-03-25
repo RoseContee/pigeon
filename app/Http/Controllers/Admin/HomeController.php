@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use App\Models\App;
 use App\Models\Guest;
+use App\Models\MailTemplate;
 use App\Models\Meeting;
 use App\Models\Membership;
 use App\Models\MembershipPackage;
 use App\Models\Platform;
+use App\Models\ScheduledEvent;
 use App\Models\Setting;
 use App\Models\User;
 use App\Models\Word;
@@ -25,52 +27,18 @@ use Illuminate\Validation\Rule;
 class HomeController extends Controller
 {
     public function dashboard() {
-        $package_number = Membership::count();
+        $user_number = User::count();
+        $meeting_number = Meeting::count() + ScheduledEvent::count();
+        $guest_number = Guest::groupBy('email')->get('id')->count();
         $platform_number = Platform::count();
         $app_number = App::count();
-        $user_number = User::count();
-        $first_day = Carbon::now()->weekday(0)->subDays(7)->setTime(0, 0, 0).'';
-        $end_day = Carbon::now()->weekday(6)->subDays(7)->setTime(0, 0, 0).'';
-        $last_week_users = User::whereBetween('created_at', [$first_day, $end_day])
-            ->get();
-        $last_data = [];
-        for ($day = new Carbon($first_day); $day <= $end_day; $day->addDay()) {
-            $last_data[$day->format('jS')] = 0;
-            foreach ($last_week_users as $user) {
-                if ($day->format('Y-m-d') == date('Y-m-d', strtotime($user['created_at']))) {
-                    $last_data[$day->format('jS')]++;
-                }
-            }
-        }
-        $first_day = Carbon::now()->weekday(0)->setTime(0, 0, 0).'';
-        $end_day = Carbon::now()->nextWeekendDay()->setTime(0, 0, 0).'';
-        $this_week_users = User::whereBetween('created_at', [$first_day, $end_day])
-            ->get();
-        $days = [];
-        $this_data = [];
-        for ($day = new Carbon($first_day); $day <= $end_day; $day->addDay()) {
-            $days[] = $day->format('jS');
-            $this_data[$day->format('jS')] = 0;
-            foreach ($this_week_users as $user) {
-                if ($day->format('Y-m-d') == date('Y-m-d', strtotime($user['created_at']))) {
-                    $this_data[$day->format('jS')]++;
-                }
-            }
-        }
-        $last_week_user = count($last_week_users); $this_week_user = count($this_week_users);
-        $user_percent = empty($last_week_user) || empty($this_week_user) ? $this_week_user * 100 : (round($this_week_user / $last_week_user, 4) * 100 - 100);
-
         return view('admin.dashboard', [
             'menu' => 'Dashboard',
-            'package_number' => $package_number,
+            'user_number' => $user_number,
+            'meeting_number' => $meeting_number,
+            'guest_number' => $guest_number,
             'platform_number' => $platform_number,
             'app_number' => $app_number,
-            'user_number' => $user_number,
-            'this_week_user' => $this_week_user,
-            'user_percent' => $user_percent,
-            'days' => $days,
-            'this_data' => $this_data,
-            'last_data' => $last_data,
         ]);
     }
 
@@ -173,18 +141,6 @@ class HomeController extends Controller
         ]);
     }
 
-    public function deleteApp(Request $request) {
-        if (($app_id = $request['app_id']) < 3) {
-            return back()->with('error_message', 'Cannot find app data');
-        }
-        $app = App::find($app_id);
-        if (empty($app)) {
-            return back()->with('error_message', 'Cannot find app data');
-        }
-        $app->delete();
-        return back()->with('info_message', 'Successfully removed');
-    }
-
     public function editApp($app_id = 0) {
         $app = App::find($app_id);
         if (empty($app) && $app_id > 0) {
@@ -202,9 +158,15 @@ class HomeController extends Controller
             return back()->with('error_message', 'Cannot find app data');
         }
         if (empty($app)) {
-            $rule['name'] = ['required', 'unique:apps,name'];
+            $rule = [
+                'name' => ['required', 'unique:apps,name'],
+                'image' => ['required', 'image'],
+            ];
         } else {
             $rule['name'] = ['required', 'unique:apps,name,'.$app['id']];
+            if (empty($app['image'])) {
+                $rule['image'] = ['required', 'image'];
+            }
         }
         $validator = Validator::make($request->all(), $rule);
         if ($validator->fails()) {
@@ -212,6 +174,9 @@ class HomeController extends Controller
         }
         if (empty($app)) $app = new App();
         if ($app_id == 0 || $app_id > 2) $app['name'] = $request['name'];
+        if ($request->hasFile('image') && !($app['image'] = $request->file('image')->store('app'))) {
+            return back()->withInput()->with('error_message', 'Cannot save image. Please try again.');
+        }
         $app['active'] = $request['active'];
         $app->save();
         return redirect()->route('admin.apps')->with('info_message', 'Successfully done');
@@ -401,7 +366,9 @@ class HomeController extends Controller
             'name' => ['required'],
             'price' => ['required', 'numeric', 'gte:0'],
             'limitation' => ['required', 'numeric', 'gt:0'],
-            //'description' => ['required'],
+            'event' => ['required', 'numeric', 'gt:0'],
+            'schedule' => ['required', 'numeric', 'gt:0'],
+            'description' => ['required'],
         ];
         if (empty($membership)) {
             $rule['name'] = ['required', 'unique:memberships,name'];
@@ -417,6 +384,8 @@ class HomeController extends Controller
         $membership['name'] = $request['name'];
         $membership['price'] = $request['price'];
         $membership['limitation'] = $request['limitation'];
+        $membership['event'] = $request['event'];
+        $membership['schedule'] = $request['schedule'];
         $membership['description'] = $request['description'];
         $membership['active'] = $request['active'];
         $membership->save();
@@ -432,6 +401,15 @@ class HomeController extends Controller
     }
 
     public function userLimitation(Request $request) {
+        $rule = [
+            'limitation' => ['required', 'numeric', 'gt:0'],
+        ];
+        $validator = Validator::make($request->all(), $rule);
+        if ($validator->fails()) {
+            return response([
+                'result' => 'failed',
+            ]);
+        }
         $user = User::find($request['user_id']);
         if (empty($user)) {
             return response([
@@ -439,6 +417,29 @@ class HomeController extends Controller
             ]);
         }
         $user['limitation'] = $request['limitation'];
+        $user->save();
+        return response([
+            'result' => 'success',
+        ]);
+    }
+
+    public function userSchedule(Request $request) {
+        $rule = [
+            'schedule' => ['required', 'numeric', 'gt:0'],
+        ];
+        $validator = Validator::make($request->all(), $rule);
+        if ($validator->fails()) {
+            return response([
+                'result' => 'failed',
+            ]);
+        }
+        $user = User::find($request['user_id']);
+        if (empty($user)) {
+            return response([
+                'result' => 'failed',
+            ]);
+        }
+        $user['schedule'] = $request['schedule'];
         $user->save();
         return response([
             'result' => 'success',
@@ -472,7 +473,7 @@ class HomeController extends Controller
 
     public function editUser($user_id = 0) {
         $user = User::find($user_id);
-        if (empty($user) && $user_id > 0) {
+        if (empty($user)) {
             return back()->with('error_message', 'Cannot find user data');
         }
         $memberships = Membership::active()->get();
@@ -485,39 +486,18 @@ class HomeController extends Controller
 
     public function postEditUser($user_id = 0, Request $request) {
         $user = User::find($user_id);
-        if (empty($user) && $user_id > 0) {
+        if (empty($user)) {
             return back()->with('error_message', 'Cannot find user data');
         }
         $rule = [
-            'name' => ['required'],
             'membership' => ['required', 'exists:memberships,id']
         ];
-        if (empty($user)) {
-            $rule['email'] = ['required', 'unique:users'];
-            $rule['password'] = ['required', 'confirmed'];
-        } else {
-            $rule['email'] = ['required', 'unique:users,email,'.$user['id']];
-            if (!empty($request['password']) || !empty($request['password_confirmation'])) {
-                $rule['password'] = ['required', 'confirmed'];
-            }
-        }
         $validator = Validator::make($request->all(), $rule);
         if ($validator->fails()) {
             return back()->withErrors($validator)->withInput()->with('error_message', 'Make sure validation rules');
         }
-        if (empty($user)) $user = new User();
         $user['name'] = $request['name'];
         $user['email'] = $request['email'];
-        if (!empty($request['password'])) $user['password'] = Hash::make($request['password']);
-        if (empty($user['membership_id']) || $user['membership_id'] != $request['membership']) {
-            $membership = Membership::find($request['membership']);
-            $package = $membership['membership_package'];
-            $user['limitation'] = $membership['limitation'];
-            $user['start_date'] = date('Y-m-d');
-            $user['end_date'] = date('Y-m-d', strtotime('+'.$package['period'].' '.($package['unit'] == 'yearly' ? 'years' : 'months')));
-
-            //Mail Notification
-        }
         $user['membership_id'] = $request['membership'];
         $user['active'] = $request['active'];
         $user->save();
@@ -581,7 +561,7 @@ class HomeController extends Controller
         ];
         $validator = Validator::make($request->all(), $rule);
         if ($validator->fails()) {
-            return back()->withErrors($validator)->withInput();
+            return back()->withErrors($validator)->withInput()->with('error_message', 'Make sure validation rules');
         }
         $email = $request['email'];
         $check_guest = Guest::where('user_id', $user_id)
@@ -605,7 +585,7 @@ class HomeController extends Controller
             return back()->with('error_message', 'Cannot find user data');
         }
         $meetings = Meeting::where('user_id', $user_id)
-            ->orderBy('booking_time', 'desc')
+            ->orderBy('server_time', 'desc')
             ->get();
         $timezone = getTimezone();
         if ($timezone != 'Unknown') {
@@ -617,6 +597,38 @@ class HomeController extends Controller
             'meetings' => $meetings,
             'timezone' => $timezone,
         ]);
+    }
+
+    public function mailTemplate($category) {
+        if (!in_array($category, ['signup', 'no-meeting', 'rate-review', 'complete-meeting', 'guests-notify', 'forgot-password', 'reset-notify'])) {
+            return back()->with('error_message', 'Cannot find Mail Template');
+        }
+        $mail = MailTemplate::ofCategory($category)->first();
+        return view('admin.mail', [
+            'menu' => $category,
+            'mail' => $mail,
+        ]);
+    }
+
+    public function postMailTemplate($category, Request $request) {
+        if (!in_array($category, ['signup', 'no-meeting', 'rate-review', 'complete-meeting', 'guests-notify', 'forgot-password', 'reset-notify'])) {
+            return back()->with('error_message', 'Cannot find Mail Template');
+        }
+        $rule = [
+            'subject' => ['required'],
+            'body' => ['required']
+        ];
+        $validator = Validator::make($request->all(), $rule);
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput()->with('error_message', 'Make sure validation rules');
+        }
+        MailTemplate::updateOrCreate([
+            'category' => $category,
+        ], [
+            'subject' => $request['subject'],
+            'body' => $request['body'],
+        ]);
+        return back()->with('info_message', 'Successfully done');
     }
 
     public function setting() {
@@ -632,26 +644,28 @@ class HomeController extends Controller
         preg_match('/^MAIL_FROM_ADDRESS=(.*)/mi', $content, $matches);
         $setting['contact_email'] = $matches[1];
 
-        preg_match('/^MAIL_DRIVER=(.*)/mi', $content, $matches);
-        $setting['mail_driver'] = $matches[1];
-        preg_match('/^MAIL_HOST=(.*)/mi', $content, $matches);
-        $setting['mail_host'] = $matches[1];
-        preg_match('/^MAIL_PORT=(.*)/mi', $content, $matches);
-        $setting['mail_port'] = $matches[1];
-        preg_match('/^MAIL_USERNAME=(.*)/mi', $content, $matches);
-        $setting['mail_username'] = $matches[1];
-        preg_match('/^MAIL_ENCRYPTION=(.*)/mi', $content, $matches);
-        $setting['mail_encryption'] = $matches[1];
-
         preg_match('/^GOOGLE_CLIENT_ID=(.*)/mi', $content, $matches);
         $setting['google_client_id'] = $matches[1];
         preg_match('/^GOOGLE_CLIENT_SECRET=(.*)/mi', $content, $matches);
         $setting['google_client_secret'] = $matches[1];
 
-        preg_match('/^LINKEDIN_CLIENT_ID=(.*)/mi', $content, $matches);
-        $setting['linkedin_client_id'] = $matches[1];
-        preg_match('/^LINKEDIN_CLIENT_SECRET=(.*)/mi', $content, $matches);
-        $setting['linkedin_client_secret'] = $matches[1];
+        preg_match('/^ZOOM_CLIENT_ID=(.*)/mi', $content, $matches);
+        $setting['zoom_client_id'] = $matches[1];
+        preg_match('/^ZOOM_CLIENT_SECRET=(.*)/mi', $content, $matches);
+        $setting['zoom_client_secret'] = $matches[1];
+
+        $env_path = config_path('mail.php');
+        $content = file_get_contents($env_path);
+        preg_match("/^'default'=>'(.*)',/mi", $content, $matches);
+        $setting['mail_driver'] = $matches[1];
+        preg_match("/^'host'=>'(.*)',/mi", $content, $matches);
+        $setting['mail_host'] = $matches[1];
+        preg_match("/^'port'=>'(.*)',/mi", $content, $matches);
+        $setting['mail_port'] = $matches[1];
+        preg_match("/^'username'=>'(.*)',/mi", $content, $matches);
+        $setting['mail_username'] = $matches[1];
+        preg_match("/^'encryption'=>'(.*)',/mi", $content, $matches);
+        $setting['mail_encryption'] = $matches[1];
 
         View::share('setting', $setting);
 
@@ -661,7 +675,6 @@ class HomeController extends Controller
     }
 
     public function postSetting(Request $request) {
-        $rule = [];
         if ($request['type'] == 'general') {
             $rule = [
                 'site_name' => ['required', 'regex:/^\S*$/'],
@@ -683,15 +696,12 @@ class HomeController extends Controller
                 'mail_username' => ['required'],
                 'mail_encryption' => ['required'],
             ];
-        } else if ($request['type'] == 'google') {
+        } else if ($request['type'] == 'third') {
             $rule = [
                 'google_client_id' => ['required'],
                 'google_client_secret' => ['required'],
-            ];
-        } else if ($request['type'] == 'linkedin') {
-            $rule = [
-                'linkedin_client_id' => ['required'],
-                'linkedin_client_secret' => ['required'],
+                'zoom_client_id' => ['required'],
+                'zoom_client_secret' => ['required'],
             ];
         } else {
             return back()->withInput()->with('error_message', 'Some went wrong. Please try again.');
@@ -709,20 +719,22 @@ class HomeController extends Controller
             $env = preg_replace('/APP_URL=.*\s/', "APP_URL=".$request['site_url']."\n", $env);
             $env = preg_replace('/MAIL_FROM_ADDRESS=.*\s/', "MAIL_FROM_ADDRESS=".$request['contact_email']."\n", $env);
         } else if ($request['type'] == 'mail') {
-            $env = preg_replace('/MAIL_DRIVER=.*\s/', "MAIL_DRIVER=".$request['mail_driver']."\n", $env);
-            $env = preg_replace('/MAIL_HOST=.*\s/', "MAIL_HOST=".$request['mail_host']."\n", $env);
-            $env = preg_replace('/MAIL_PORT=.*\s/', "MAIL_PORT=".$request['mail_port']."\n", $env);
-            $env = preg_replace('/MAIL_USERNAME=.*\s/', "MAIL_USERNAME=".$request['mail_username']."\n", $env);
+            $env_path = config_path('mail.php');
+            $env = file_get_contents($env_path);
+            $env = preg_replace("/^'default'=>'(.*)',/mi", "'default'=>'".$request['mail_driver']."',", $env);
+            $env = preg_replace("/^'host'=>'(.*)',/mi", "'host'=>'".$request['mail_host']."',", $env);
+            $env = preg_replace("/^'port'=>'(.*)',/mi", "'port'=>'".$request['mail_port']."',", $env);
+            $env = preg_replace("/^'username'=>'(.*)',/mi", "'username'=>'".$request['mail_username']."',", $env);
+            $env = preg_replace("/^'encryption'=>'(.*)',/mi", "'encryption'=>'".$request['mail_encryption']."',", $env);
             if (!empty($request['mail_password'])) {
-                $env = preg_replace('/MAIL_PASSWORD=.*\s/', "MAIL_PASSWORD=".$request['mail_password']."\n", $env);
+                $env = preg_replace("/^'password'=>'(.*)',/mi", "'password'=>'".$request['mail_password']."',", $env);
             }
-            $env = preg_replace('/MAIL_ENCRYPTION=.*\s/', "MAIL_ENCRYPTION=".$request['mail_encryption']."\n", $env);
-        } else if ($request['type'] == 'google') {
+            file_put_contents($env_path, $env);
+        } else if ($request['type'] == 'third') {
             $env = preg_replace('/GOOGLE_CLIENT_ID=.*\s/', "GOOGLE_CLIENT_ID=".$request['google_client_id']."\n", $env);
             $env = preg_replace('/GOOGLE_CLIENT_SECRET=.*\s/', "GOOGLE_CLIENT_SECRET=".$request['google_client_secret']."\n", $env);
-        } else if ($request['type'] == 'linkedin') {
-            $env = preg_replace('/LINKEDIN_CLIENT_ID=.*\s/', "LINKEDIN_CLIENT_ID=".$request['linkedin_client_id']."\n", $env);
-            $env = preg_replace('/LINKEDIN_CLIENT_SECRET=.*\s/', "LINKEDIN_CLIENT_SECRET=".$request['linkedin_client_secret']."\n", $env);
+            $env = preg_replace('/ZOOM_CLIENT_ID=.*\s/', "ZOOM_CLIENT_ID=".$request['zoom_client_id']."\n", $env);
+            $env = preg_replace('/ZOOM_CLIENT_SECRET=.*\s/', "ZOOM_CLIENT_SECRET=".$request['zoom_client_secret']."\n", $env);
         }
         file_put_contents($env_path, $env);
 

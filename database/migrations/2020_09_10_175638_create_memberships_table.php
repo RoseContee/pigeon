@@ -19,6 +19,8 @@ class CreateMembershipsTable extends Migration
             $table->string('name');
             $table->string('price');
             $table->integer('limitation');
+            $table->integer('event');
+            $table->integer('schedule');
             $table->text('description');
             $table->tinyInteger('active')->default(1);
             $table->timestamps();

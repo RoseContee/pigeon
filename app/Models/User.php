@@ -17,8 +17,8 @@ class User extends Authenticatable
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'membership_id', 'limitation', 'start_date', 'end_date',
-        'active', 'api_token', 'linkedin_id', 'avatar',
+        'name', 'email', 'password', 'membership_id', 'limitation', 'event', 'schedule', 'start_date', 'end_date',
+        'booking_number', 'active', 'api_token', 'google_id', 'avatar', 'slug',
     ];
 
     /**
@@ -60,5 +60,13 @@ class User extends Authenticatable
 
     public function metas() {
         return $this->hasMany('App\Models\UserMeta');
+    }
+
+    public function schedules() {
+        return $this->hasMany('App\Models\UserSchedule');
+    }
+
+    public function events() {
+        return $this->hasMany('App\Models\UserEvent');
     }
 }
